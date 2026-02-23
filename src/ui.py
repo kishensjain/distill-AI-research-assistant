@@ -2,7 +2,8 @@ import gradio as gr
 import os
 from openai import OpenAI, APIConnectionError
 from dotenv import load_dotenv
-from src.chunker import get_relevant_chunks
+from src.chunker import get_relevant_chunks,chunk_text
+from src.ingestion import load_text, load_file
 
 load_dotenv()
 
@@ -25,7 +26,36 @@ If the answer isn't present, say so honestly.
 
 
 def load_sources(sources_text: str, files):
-    pass
+    sources = [s.strip() for s in sources_text.strip().splitlines() if s.strip()]
+    
+    all_content = []
+    log = []
+
+    for source in sources:
+        try:
+            content = load_text(source)
+            all_content.append(content)
+            log.append(f"✅ Loaded {len(content)} characters from: {source[:60]}")
+        except Exception as e:
+            log.append(f"❌ Failed: {source[:60]} — {e}")
+
+    if files:
+        for file in files:
+            try:
+                content = load_file(file.name)
+                all_content.append(content)
+                log.append(f"✅ Loaded {len(content)} characters from: {file.name.split('/')[-1]}")
+            except Exception as e:
+                log.append(f"❌ Failed to load file: {e}")
+
+    if not all_content:
+        return "No sources provided.", []
+    
+    combined = "\n\n---\n\n".join(all_content)
+    chunks = chunk_text(combined)
+    log.append(f"\n📦 Total: {len(combined)} characters split into {len(chunks)} chunks.")
+    
+    return "\n".join(log), chunks
 
 
 def respond(user_message: str, history: list, chunks: list):
