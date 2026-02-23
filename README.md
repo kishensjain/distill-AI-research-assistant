@@ -1,3 +1,14 @@
+---
+title: Distill AI Research Assistant
+emoji: 🔍
+colorFrom: blue
+colorTo: indigo
+sdk: gradio
+sdk_version: "6.6.0"
+app_file: main.py
+pinned: false
+---
+
 # Distill 🔍
 
 > Chat with anything. URLs, PDFs, Word docs, and YouTube videos — all in one place.
