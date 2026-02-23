@@ -2,7 +2,7 @@ import gradio as gr
 import os
 from openai import OpenAI, APIConnectionError
 from dotenv import load_dotenv
-from src.chunker import get_relevant_chunks,chunk_text
+from src.chunker import get_relevant_chunks, chunk_text
 from src.ingestion import load_text, load_file
 
 load_dotenv()
@@ -26,8 +26,9 @@ If the answer isn't present, say so honestly.
 
 
 def load_sources(sources_text: str, files):
-    sources = [s.strip() for s in sources_text.strip().splitlines() if s.strip()]
-    
+    sources = [s.strip()
+               for s in sources_text.strip().splitlines() if s.strip()]
+
     all_content = []
     log = []
 
@@ -35,7 +36,8 @@ def load_sources(sources_text: str, files):
         try:
             content = load_text(source)
             all_content.append(content)
-            log.append(f"✅ Loaded {len(content)} characters from: {source[:60]}")
+            log.append(
+                f"✅ Loaded {len(content)} characters from: {source[:60]}")
         except Exception as e:
             log.append(f"❌ Failed: {source[:60]} — {e}")
 
@@ -44,18 +46,31 @@ def load_sources(sources_text: str, files):
             try:
                 content = load_file(file.name)
                 all_content.append(content)
-                log.append(f"✅ Loaded {len(content)} characters from: {file.name.split('/')[-1]}")
+                log.append(
+                    f"✅ Loaded {len(content)} characters from: {file.name.split('/')[-1]}")
             except Exception as e:
                 log.append(f"❌ Failed to load file: {e}")
 
     if not all_content:
         return "No sources provided.", []
-    
+
     combined = "\n\n---\n\n".join(all_content)
     chunks = chunk_text(combined)
-    log.append(f"\n📦 Total: {len(combined)} characters split into {len(chunks)} chunks.")
-    
-    return "\n".join(log), chunks
+    log.append(
+        f"\n📦 Total: {len(combined)} characters split into {len(chunks)} chunks.")
+
+    # Auto summary
+    preview = combined[:6000]
+    summary_response = client.chat.completions.create(
+        model=MODEL,
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant. Summarize the following content in 5-6 sentences so the user knows what they are working with."},
+            {"role": "user", "content": preview}
+        ]
+    )
+    summary = summary_response.choices[0].message.content
+
+    return "\n".join(log), chunks, summary
 
 
 def respond(user_message: str, history: list, chunks: list):
@@ -119,8 +134,13 @@ def build_ui() -> gr.Blocks:
                 load_btn = gr.Button("Load Sources", variant="primary")
                 load_output = gr.Textbox(
                     label="Load Status", lines=5, interactive=False)
+                summary_output = gr.Textbox(
+                    label="📝 Auto Summary",
+                    lines=5,
+                    interactive=False
+                )
 
-            with gr.Column(scale=2):
+            with gr.Column(scale=3):
                 chatbot = gr.Chatbot(label="Chat", height=480)
                 user_input = gr.Textbox(
                     label="Your question",
@@ -131,7 +151,7 @@ def build_ui() -> gr.Blocks:
             load_btn.click(
                 fn=load_sources,
                 inputs=[sources_input, file_input],
-                outputs=[load_output, chunks_state]
+                outputs=[load_output, chunks_state,summary_output]
             )
 
             send_btn.click(
