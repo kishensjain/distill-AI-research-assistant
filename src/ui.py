@@ -6,17 +6,27 @@ from dotenv import load_dotenv
 load_dotenv()
 
 client = OpenAI(
-    base_url = "https://ollama.com/v1",
-    api_key = os.getenv("OLLAMA_API_KEY")
+    base_url="https://ollama.com/v1",
+    api_key=os.getenv("OLLAMA_API_KEY")
 )
 
 MODEL = "gpt-oss:120b"
 
+
+def load_sources(sources_text: str, files):
+    pass
+
+
+def respond(user_message: str, history: list, chunks: list):
+    pass
+
+
 def build_ui() -> gr.Blocks:
     with gr.Blocks(title="AI research assistant") as demo:
-        gr.Markdown("# 🔍 AI Research Assistant by Kishen\nLoad URLs or paste text, then ask questions about it.")
+        gr.Markdown(
+            "# 🔍 AI Research Assistant by Kishen\nLoad URLs or paste text, then ask questions about it.")
 
-        chunks_state = gr.State([]) 
+        chunks_state = gr.State([])
 
         with gr.Row():
             with gr.Column(scale=1):
@@ -28,16 +38,36 @@ def build_ui() -> gr.Blocks:
                 file_input = gr.File(
                     label="Or upload PDF / Word files",
                     file_types=[".pdf", ".docx"],
-                    file_count="multiple"
+                    file_count="multiple",
                 )
                 load_btn = gr.Button("Load Sources", variant="primary")
-                load_output = gr.Textbox(label="Load Status", lines=5, interactive=False)
+                load_output = gr.Textbox(
+                    label="Load Status", lines=5, interactive=False)
 
             with gr.Column(scale=2):
-                chatbot = gr.Chatbot(label="Chat", height=450)
+                chatbot = gr.Chatbot(label="Chat", height=480)
                 user_input = gr.Textbox(
                     label="Your question",
                     placeholder="Ask something about your sources...",
                 )
                 send_btn = gr.Button("Send", variant="primary")
+
+            load_btn.click(
+                fn=load_sources,
+                inputs=[sources_input, file_input],
+                outputs=[load_output, chunks_state]
+            )
+
+            send_btn.click(
+                fn=respond,
+                inputs=[user_input, chatbot, chunks_state],
+                outputs=[chatbot]
+            ).then(lambda: "", outputs=[user_input])
+
+            user_input.submit(
+                fn=respond,
+                inputs=[user_input, chatbot, chunks_state],
+                outputs=[chatbot]
+            ).then(lambda: "", outputs=[user_input])
+
     return demo
