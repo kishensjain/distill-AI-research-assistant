@@ -14,6 +14,16 @@ client = OpenAI(
 MODEL = "gpt-oss:120b"
 
 
+def build_system_prompt(relevant_content: str) -> str:
+    return f"""You are a helpful research assistant.
+Answer the user's question based on the following relevant excerpts from their research material.
+If the answer isn't present, say so honestly.
+
+--- CONTENT START ---
+{relevant_content}
+--- CONTENT END ---"""
+
+
 def load_sources(sources_text: str, files):
     pass
 
@@ -43,19 +53,18 @@ def respond(user_message: str, history: list, chunks: list):
             messages=messages,
             stream=True
         )
-        
+
         for chunk in stream:
             delta = chunk.choices[0].delta.content or ""
             history[-1]["content"] += delta
             yield history
-    
+
     except APIConnectionError:
         history[-1]["content"] = "❌ Could not connect to Ollama. Run: ollama serve"
         yield history
     except Exception as e:
         history[-1]["content"] = f"❌ Unexpected error: {e}"
         yield history
-
 
 
 def build_ui() -> gr.Blocks:
