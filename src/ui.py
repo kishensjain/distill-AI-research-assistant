@@ -1,3 +1,4 @@
+import gradio as gr
 import os
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -10,3 +11,9 @@ client = OpenAI(
 )
 
 MODEL = "gpt-oss:120b"
+
+def build_ui() -> gr.Blocks:
+    with gr.Blocks() as demo:
+        pass
+    
+    return demo

@@ -1,6 +1,5 @@
-def main():
-    print("Hello from ai-research-agent!")
+from src.ui import build_ui
 
-
-if __name__ == "__main__":
-    main()
+app = build_ui()
+app.launch()
+# app.launc(share=True)
