@@ -51,7 +51,7 @@ def extract_pdf(file_path: str) -> str:
     reader = PdfReader(file_path)
     text = ""
     for page in reader.pages:
-        text += page.extract_text() + "\n"
+        text += (page.extract_text() or "") + "\n"
     return text.strip()
 
 
@@ -62,12 +62,12 @@ def extract_docx(file_path: str) -> str:
 
 
 def load_file(file_path: str) -> str:
-    if file_path.endswith(".pdf"):
+    if file_path.lower().endswith(".pdf"):
         return extract_pdf(file_path)
-    elif file_path.endswith(".docx"):
+    elif file_path.lower().endswith(".docx"):
         return extract_docx(file_path)
     else:
-        return open(file_path, "r").read()
+        return open(file_path, "r",encoding="utf-8").read()
 
 
 def load_text(source: str) -> str:
