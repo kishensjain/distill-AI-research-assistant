@@ -1,3 +1,13 @@
+import numpy as np
+from openai import OpenAI
+import os
+from src.cosine_similarity import cosine_similarity
+
+client = OpenAI(
+    base_url="https://ollama.com/v1",
+    api_key=os.getenv("OLLAMA_API_KEY")
+)
+
 def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 100) -> list[str]:
     """
     Split text into overlapping chunks.
@@ -18,39 +28,39 @@ def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 100) -> list[st
     return chunks
 
 
-def get_relevant_chunks(query: str, chunks: list[str], max_chars: int = 20000) -> str:
-    """
-    Score chunks by keyword overlap with the query and return the most relevant ones.
-    """
+def retrieve_relevant_chunks(query, chunks, chunk_embeddings, max_chars=20000):
+    query_embedding = get_embedding(query)
 
-    STOPWORDS = {"is", "the", "it", "and", "of", "to", "a"}
+    scores = []
+    for i, emb in enumerate(chunk_embeddings):
+        score = cosine_similarity(query_embedding, emb)
+        scores.append((score, chunks[i]))
 
-    query_words = {
-        word.strip(".,!?")
-        for word in query.lower().split()
-        if word.strip(".,!?") not in STOPWORDS
-    }
-
-    scored = []
-    for chunk in chunks:
-        chunk_words = {
-            word.strip(".,!?")
-            for word in chunk.lower().split()
-        }
-        score = len(query_words & chunk_words)  # number of shared words
-        if score > 0:
-            scored.append((score, chunk))
-
-    # sort by score, descending
-    scored.sort(key=lambda x: x[0], reverse=True)
+    scores.sort(reverse=True, key=lambda x: x[0])
 
     selected = []
     total_chars = 0
 
-    for score, chunk in scored:
+    for score, chunk in scores:
         if total_chars + len(chunk) > max_chars:
             break
         selected.append(chunk)
         total_chars += len(chunk)
 
     return "\n\n---\n\n".join(selected)
+
+def get_embedding(text:str) -> np.ndarray:
+    """
+    Takes a string as input and returns its embedding as a NumPy array.
+    An embedding is a list of numbers that represents the meaning of text.
+    """
+
+    text = text.replace("\n", " ")
+
+    response = client.embeddings.create(
+        model = "qwen3-vl:235b-cloud",
+        input = text
+    )
+
+    embedding = response.data[0].embedding
+    return np.array(embedding)

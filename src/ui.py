@@ -2,8 +2,9 @@ import gradio as gr
 import os
 from openai import OpenAI, APIConnectionError
 from dotenv import load_dotenv
-from src.chunker import get_relevant_chunks, chunk_text
+from src.chunker import retrieve_relevant_chunks, chunk_text, get_embedding
 from src.ingestion import load_text, load_file
+from src.cosine_similarity import cosine_similarity
 
 load_dotenv()
 
@@ -13,7 +14,6 @@ client = OpenAI(
 )
 
 MODEL = "gpt-oss:120b"
-
 
 def build_system_prompt(relevant_content: str) -> str:
     return f"""You are a helpful research assistant.
@@ -56,6 +56,12 @@ def load_sources(sources_text: str, files):
 
     combined = "\n\n---\n\n".join(all_content)
     chunks = chunk_text(combined)
+    chunk_embeddings =[]
+
+    for chunk in chunks:
+        emb = get_embedding(chunk)
+        chunk_embeddings.append(emb)
+
     log.append(
         f"\n📦 Total: {len(combined)} characters split into {len(chunks)} chunks.")
 
@@ -70,18 +76,20 @@ def load_sources(sources_text: str, files):
     )
     summary = summary_response.choices[0].message.content
 
-    return "\n".join(log), chunks, summary
+    return "\n".join(log), (chunks, chunk_embeddings), summary
 
 
-def respond(user_message: str, history: list, chunks: list):
-    if not chunks:
+def respond(user_message: str, history: list, chunk_data: tuple):
+    if not chunk_data:
         history.append({"role": "user", "content": user_message})
         history.append(
             {"role": "assistant", "content": "⚠️ Please load some sources first."})
         yield history
         return
-
-    relevant_content = get_relevant_chunks(user_message, chunks)
+    
+    chunks, chunk_embeddings = chunk_data
+    
+    relevant_content = retrieve_relevant_chunks(user_message, chunks, chunk_embeddings)
 
     messages = [
         {"role": "system", "content": build_system_prompt(relevant_content)},
